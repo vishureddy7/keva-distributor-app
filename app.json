@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Keva Distributor",
+    "slug": "keva-distributor-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1565C0"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "package": "com.kevaDistributor.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "6634e2b9-1fbe-4593-95b7-8b766bfc8c44"
+      }
+    }
+  }
+}
