@@ -21,11 +21,10 @@ import { COLORS, LOW_STOCK_THRESHOLD } from '../utils/constants';
 // ─────────────────────────────────────────────
 
 const FULL_COLUMNS = [
-  { key: 'productName',  label: 'Product',      flex: 2.2, align: 'left'  },
-  { key: 'totalStockIn', label: 'Stock In',      flex: 1,   align: 'right' },
-  { key: 'totalSold',    label: 'Sold',          flex: 0.8, align: 'right' },
-  { key: 'currentStock', label: 'Available',     flex: 1,   align: 'right' },
-  { key: 'lastUpdated',  label: 'Last Updated',  flex: 1.8, align: 'right' },
+  { key: 'productName',  label: 'Product',   flex: 3.2, align: 'left'  },
+  { key: 'totalStockIn', label: 'Stock In',  flex: 1,   align: 'right' },
+  { key: 'totalSold',    label: 'Sold',      flex: 0.8, align: 'right' },
+  { key: 'currentStock', label: 'Available', flex: 1,   align: 'right' },
 ];
 
 const COMPACT_COLUMNS = [

@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────
-//  HomeScreen.js  (UPDATED)
-//  Added Import Stock action card
+//  HomeScreen.js
+//  Import Stock → Customer Sales Records
 // ─────────────────────────────────────────────
 
 import React, { useCallback } from 'react';
@@ -38,10 +38,10 @@ const ACTIONS = [
     accent:   '#00796B',
   },
   {
-    route:    ROUTES.IMPORT_STOCK,   // ← NEW
-    icon:     '📋',
-    label:    'Import Stock',
-    sublabel: 'Bulk import from Keva invoice',
+    route:    ROUTES.CUSTOMER_SALES,
+    icon:     '🧾',
+    label:    'Customer Sales Records',
+    sublabel: 'View & edit past sales',
     accent:   '#6A1B9A',
   },
   {
@@ -62,7 +62,7 @@ const ACTIONS = [
     route:    ROUTES.EXCEL_VIEW,
     icon:     '📁',
     label:    'View / Export Excel',
-    sublabel: 'Share or open the .xlsx file',
+    sublabel: 'Save or share the .xlsx file',
     accent:   '#37474F',
   },
 ];

@@ -1,7 +1,10 @@
 // ─────────────────────────────────────────────
 //  RecordSaleScreen.js
-//  Records a customer sale for one or more
-//  products. Atomic write via stockService.
+//
+//  CHANGES:
+//   • Each product in the "Enter Quantities" section
+//     now has a red "✕ Remove" button so the user can
+//     drop a product without reopening the dropdown.
 // ─────────────────────────────────────────────
 
 import React, { useState, useRef } from 'react';
@@ -63,7 +66,6 @@ export default function RecordSaleScreen() {
   }
 
   function handleProductsChange(values) {
-    // values is string[] in multi mode
     const newValues = values || [];
     setSelectedProds(newValues);
     setProductError('');
@@ -72,20 +74,22 @@ export default function RecordSaleScreen() {
     // Clean up quantities for de-selected products
     setQuantities((prev) => {
       const next = {};
-      newValues.forEach((name) => {
-        next[name] = prev[name] ?? '';
-      });
+      newValues.forEach((name) => { next[name] = prev[name] ?? ''; });
       return next;
     });
 
     // Clean up qty errors
     setQtyErrors((prev) => {
       const next = {};
-      newValues.forEach((name) => {
-        if (prev[name]) next[name] = prev[name];
-      });
+      newValues.forEach((name) => { if (prev[name]) next[name] = prev[name]; });
       return next;
     });
+  }
+
+  // ── Remove a single product from the list ─
+  function handleRemoveProduct(productName) {
+    const newValues = selectedProds.filter((p) => p !== productName);
+    handleProductsChange(newValues);
   }
 
   function handleQtyChange(productName, text) {
@@ -100,7 +104,6 @@ export default function RecordSaleScreen() {
   function validateAll() {
     let valid = true;
 
-    // Customer name
     const nameCheck = validateCustomerName(customerName);
     if (!nameCheck.valid) {
       setCustomerError(nameCheck.error);
@@ -109,7 +112,6 @@ export default function RecordSaleScreen() {
       setCustomerError('');
     }
 
-    // At least one product
     if (selectedProds.length === 0) {
       setProductError('Please select at least one product.');
       valid = false;
@@ -117,7 +119,6 @@ export default function RecordSaleScreen() {
       setProductError('');
     }
 
-    // Quantities per product
     const newQtyErrors = {};
     selectedProds.forEach((name) => {
       const stock = getStockFor(name);
@@ -145,7 +146,6 @@ export default function RecordSaleScreen() {
   async function handleConfirm() {
     setSaving(true);
     try {
-      // Build items array enriched with currentStock for service-layer validation
       const items = selectedProds.map((name) => ({
         productName:  name,
         qty:          Number(quantities[name]),
@@ -170,7 +170,6 @@ export default function RecordSaleScreen() {
       setModalVisible(false);
     } catch (err) {
       setModalVisible(false);
-      // Surface specific product error if returned from excelService
       setCustomerError(err.message || 'Failed to record sale. Please try again.');
     } finally {
       setSaving(false);
@@ -182,12 +181,13 @@ export default function RecordSaleScreen() {
   }
 
   // ─────────────────────────────────────────
-  //  Derived — sale total
+  //  Derived
   // ─────────────────────────────────────────
 
-  const totalUnits = selectedProds.reduce((sum, name) => {
-    return sum + (parseFloat(quantities[name]) || 0);
-  }, 0);
+  const totalUnits = selectedProds.reduce(
+    (sum, name) => sum + (parseFloat(quantities[name]) || 0),
+    0,
+  );
 
   const canSubmit = customerName.trim().length >= 2 && selectedProds.length > 0;
 
@@ -283,33 +283,42 @@ export default function RecordSaleScreen() {
               <Text style={styles.sectionTitle}>Enter Quantities</Text>
             </View>
 
-            {selectedProds.map((productName, index) => {
-              const stock = getStockFor(productName);
+            {selectedProds.map((name, index) => {
+              const stock = getStockFor(name);
               return (
                 <View
-                  key={productName}
+                  key={name}
                   style={[
                     styles.productQtyBlock,
                     index < selectedProds.length - 1 && styles.productQtyBlockBorder,
                   ]}
                 >
-                  {/* Product name row */}
+                  {/* Product name row + remove button */}
                   <View style={styles.productNameRow}>
                     <View style={styles.productIndexBadge}>
                       <Text style={styles.productIndexText}>{index + 1}</Text>
                     </View>
-                    <Text style={styles.productName} numberOfLines={1}>
-                      {productName}
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {name}
                     </Text>
+                    {/* ── Remove button ── */}
+                    <TouchableOpacity
+                      style={styles.removeBtn}
+                      onPress={() => handleRemoveProduct(name)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.removeBtnText}>✕ Remove</Text>
+                    </TouchableOpacity>
                   </View>
 
                   {/* Quantity input */}
                   <QuantityInput
-                    value={quantities[productName] ?? ''}
-                    onChangeText={(text) => handleQtyChange(productName, text)}
+                    value={quantities[name] ?? ''}
+                    onChangeText={(text) => handleQtyChange(name, text)}
                     currentStock={stock}
                     label="Quantity to sell"
-                    error={qtyErrors[productName] || ''}
+                    error={qtyErrors[name] || ''}
                     style={styles.qtyInput}
                   />
                 </View>
@@ -328,10 +337,7 @@ export default function RecordSaleScreen() {
 
         {/* ── Submit button ───────────────── */}
         <TouchableOpacity
-          style={[
-            styles.submitBtn,
-            !canSubmit && styles.submitBtnDisabled,
-          ]}
+          style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
           onPress={handlePreview}
           activeOpacity={0.85}
           disabled={!canSubmit}
@@ -357,14 +363,12 @@ export default function RecordSaleScreen() {
       >
         {/* Sale items summary */}
         <View style={styles.modalSummary}>
-          {/* Header row */}
           <View style={[styles.modalSummaryRow, styles.modalSummaryHeader]}>
             <Text style={[styles.modalSummaryCol, styles.modalHeaderText]}>Product</Text>
             <Text style={[styles.modalSummaryColRight, styles.modalHeaderText]}>Qty</Text>
-            <Text style={[styles.modalSummaryColRight, styles.modalHeaderText]}>Stock After</Text>
+            <Text style={[styles.modalSummaryColRight, styles.modalHeaderText]}>After</Text>
           </View>
 
-          {/* Item rows */}
           {selectedProds.map((name, i) => {
             const qty   = parseFloat(quantities[name]) || 0;
             const stock = getStockFor(name);
@@ -378,7 +382,7 @@ export default function RecordSaleScreen() {
                   !isLast && styles.modalSummaryRowBorder,
                 ]}
               >
-                <Text style={styles.modalSummaryCol} numberOfLines={1}>
+                <Text style={styles.modalSummaryCol} numberOfLines={2}>
                   {name}
                 </Text>
                 <Text style={[styles.modalSummaryColRight, styles.modalQty]}>
@@ -394,7 +398,6 @@ export default function RecordSaleScreen() {
             );
           })}
 
-          {/* Total row */}
           <View style={[styles.modalSummaryRow, styles.modalTotalRow]}>
             <Text style={styles.modalTotalLabel}>Total Units Sold</Text>
             <Text style={styles.modalTotalValue}>{totalUnits}</Text>
@@ -410,270 +413,118 @@ export default function RecordSaleScreen() {
 // ─────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scroll: {
-    padding: 16,
-  },
+  root:   { flex: 1, backgroundColor: COLORS.background },
+  scroll: { padding: 16 },
 
   // ── Success banner ────────────────────────
   successBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.success,
-    padding: 14,
-    marginBottom: 14,
-    gap: 12,
+    flexDirection: 'row', alignItems: 'flex-start',
+    backgroundColor: '#E8F5E9', borderRadius: 12,
+    borderLeftWidth: 4, borderLeftColor: COLORS.success,
+    padding: 14, marginBottom: 14, gap: 12,
   },
-  successIcon: { fontSize: 22 },
+  successIcon:      { fontSize: 22 },
   successTextGroup: { flex: 1 },
-  successTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.success,
-    marginBottom: 3,
-  },
-  successMsg: {
-    fontSize: 13,
-    color: COLORS.textPrimary,
-    lineHeight: 20,
-  },
-  bold: { fontWeight: '700' },
+  successTitle:     { fontSize: 14, fontWeight: '700', color: COLORS.success, marginBottom: 3 },
+  successMsg:       { fontSize: 13, color: COLORS.textPrimary, lineHeight: 20 },
+  bold:             { fontWeight: '700' },
 
   // ── Section card ──────────────────────────
   sectionCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 12,
-
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: COLORS.surface, borderRadius: 14,
+    padding: 18, marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 10,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10,
   },
   sectionStep: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.primary,
-    color: COLORS.surface,
-    fontSize: 13,
-    fontWeight: '800',
-    textAlign: 'center',
-    lineHeight: 26,
-    overflow: 'hidden',
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.primary, color: COLORS.surface,
+    fontSize: 13, fontWeight: '800', textAlign: 'center',
+    lineHeight: 26, overflow: 'hidden',
   },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    letterSpacing: 0.2,
-  },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, letterSpacing: 0.2 },
 
   // ── Input styles ──────────────────────────
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.textPrimary,
-    marginBottom: 6,
-    letterSpacing: 0.2,
-  },
-  labelError: {
-    color: COLORS.error,
-  },
-  required: {
-    color: COLORS.error,
-  },
+  label:      { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 6, letterSpacing: 0.2 },
+  labelError: { color: COLORS.error },
+  required:   { color: COLORS.error },
   input: {
-    borderWidth: 1.5,
-    borderColor: '#BDBDBD',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: COLORS.textPrimary,
-    backgroundColor: COLORS.surface,
+    borderWidth: 1.5, borderColor: '#BDBDBD', borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: COLORS.textPrimary, backgroundColor: COLORS.surface,
   },
-  inputError: {
-    borderColor: COLORS.error,
-  },
-  errorText: {
-    marginTop: 5,
-    fontSize: 12,
-    color: COLORS.error,
-    fontWeight: '500',
-  },
+  inputError: { borderColor: COLORS.error },
+  errorText:  { marginTop: 5, fontSize: 12, color: COLORS.error, fontWeight: '500' },
 
   // ── Product qty block ─────────────────────
-  productQtyBlock: {
-    paddingVertical: 14,
-  },
-  productQtyBlockBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
+  productQtyBlock:       { paddingVertical: 14 },
+  productQtyBlockBorder: { borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+
   productNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 10,
+    flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10,
   },
   productIndexBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 22, height: 22, borderRadius: 11,
     backgroundColor: COLORS.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
   },
-  productIndexText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.surface,
-  },
+  productIndexText: { fontSize: 11, fontWeight: '800', color: COLORS.surface },
   productName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
+    flex: 1, fontSize: 14, fontWeight: '700', color: COLORS.textPrimary,
   },
-  qtyInput: {
-    marginTop: 2,
+
+  // ── Remove button ─────────────────────────
+  removeBtn: {
+    paddingHorizontal: 9, paddingVertical: 5,
+    backgroundColor: '#FFEBEE', borderRadius: 7,
+    flexShrink: 0,
   },
+  removeBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.error },
+
+  qtyInput: { marginTop: 2 },
 
   // ── Sale summary footer ───────────────────
   saleSummaryFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1.5,
-    borderTopColor: COLORS.primary + '30',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: 14, paddingTop: 12,
+    borderTopWidth: 1.5, borderTopColor: COLORS.primary + '30',
   },
-  saleSummaryLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.textSecondary,
-    letterSpacing: 0.2,
-  },
-  saleSummaryValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: COLORS.primary,
-  },
+  saleSummaryLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 0.2 },
+  saleSummaryValue: { fontSize: 20, fontWeight: '800', color: COLORS.primary },
 
   // ── Submit button ─────────────────────────
   submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 15,
-    gap: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 15, gap: 10,
     marginTop: 4,
-
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.30,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.30, shadowRadius: 8, elevation: 5,
   },
-  submitBtnDisabled: {
-    backgroundColor: '#BDBDBD',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
+  submitBtnDisabled: { backgroundColor: '#BDBDBD', shadowOpacity: 0, elevation: 0 },
   submitIcon: { fontSize: 18 },
-  submitText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.surface,
-    letterSpacing: 0.3,
-  },
+  submitText: { fontSize: 16, fontWeight: '800', color: COLORS.surface, letterSpacing: 0.3 },
 
   // ── Modal summary table ───────────────────
-  modalSummary: {
-    backgroundColor: '#F5F7FA',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  modalSummaryHeader: {
-    backgroundColor: '#E8EEF8',
-  },
+  modalSummary:       { backgroundColor: '#F5F7FA', borderRadius: 8, overflow: 'hidden', marginTop: 4 },
+  modalSummaryHeader: { backgroundColor: '#E8EEF8' },
   modalHeaderText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: 11, fontWeight: '700', color: COLORS.primary,
+    textTransform: 'uppercase', letterSpacing: 0.4,
   },
   modalSummaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: 12,
   },
-  modalSummaryRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
-  },
-  modalSummaryCol: {
-    flex: 2,
-    fontSize: 13,
-    color: COLORS.textPrimary,
-    fontWeight: '500',
-  },
-  modalSummaryColRight: {
-    flex: 1,
-    fontSize: 13,
-    color: COLORS.textPrimary,
-    fontWeight: '600',
-    textAlign: 'right',
-  },
-  modalQty: {
-    color: COLORS.error,
-    fontWeight: '700',
-  },
-  modalAfterOk: {
-    color: COLORS.success,
-    fontWeight: '700',
-  },
-  modalAfterEmpty: {
-    color: COLORS.error,
-    fontWeight: '700',
-  },
-  modalTotalRow: {
-    borderTopWidth: 1.5,
-    borderTopColor: '#D0D0D0',
-    backgroundColor: '#ECEEF5',
-  },
-  modalTotalLabel: {
-    flex: 2,
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-  },
-  modalTotalValue: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORS.primary,
-    textAlign: 'right',
-  },
+  modalSummaryRowBorder: { borderBottomWidth: 1, borderBottomColor: '#E8E8E8' },
+  modalSummaryCol:      { flex: 2, fontSize: 13, color: COLORS.textPrimary, fontWeight: '500' },
+  modalSummaryColRight: { flex: 1, fontSize: 13, color: COLORS.textPrimary, fontWeight: '600', textAlign: 'right' },
+  modalQty:             { color: COLORS.error, fontWeight: '700' },
+  modalAfterOk:         { color: COLORS.success, fontWeight: '700' },
+  modalAfterEmpty:      { color: COLORS.error, fontWeight: '700' },
+  modalTotalRow:        { borderTopWidth: 1.5, borderTopColor: '#D0D0D0', backgroundColor: '#ECEEF5' },
+  modalTotalLabel:      { flex: 2, fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  modalTotalValue:      { flex: 1, fontSize: 15, fontWeight: '800', color: COLORS.primary, textAlign: 'right' },
 });

@@ -3,6 +3,10 @@
 //  Reusable confirmation dialog shown before
 //  any destructive / write operation.
 //
+//  FIX: message + children now scroll inside the
+//  card so the action buttons are always visible
+//  regardless of how long the product list is.
+//
 //  Props:
 //    visible       {bool}     — controls visibility
 //    title         {string}   — modal heading
@@ -24,6 +28,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   TouchableWithoutFeedback,
+  ScrollView,
   Platform,
 } from 'react-native';
 
@@ -43,7 +48,7 @@ export default function ConfirmModal({
   onConfirm,
   onCancel,
   loading       = false,
-  children,          // optional: render custom content between message and buttons
+  children,
 }) {
   return (
     <Modal
@@ -51,7 +56,7 @@ export default function ConfirmModal({
       transparent
       animationType="fade"
       statusBarTranslucent={Platform.OS === 'android'}
-      onRequestClose={onCancel}   // Android hardware back button
+      onRequestClose={onCancel}
     >
       {/* Dim backdrop — tap to cancel */}
       <TouchableWithoutFeedback onPress={loading ? undefined : onCancel}>
@@ -68,17 +73,26 @@ export default function ConfirmModal({
           {/* ── Divider ───────────────────────── */}
           <View style={styles.divider} />
 
-          {/* ── Message ───────────────────────── */}
-          {!!message && (
-            <Text style={styles.message}>{message}</Text>
+          {/* ── Scrollable body ───────────────── */}
+          {/* maxHeight caps the scroll area so buttons always show */}
+          {(!!message || !!children) && (
+            <ScrollView
+              style={styles.scrollArea}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+            >
+              {!!message && (
+                <Text style={styles.message}>{message}</Text>
+              )}
+              {!!children && (
+                <View style={styles.childrenWrapper}>{children}</View>
+              )}
+            </ScrollView>
           )}
 
-          {/* ── Optional custom content ───────── */}
-          {children && (
-            <View style={styles.childrenWrapper}>{children}</View>
-          )}
-
-          {/* ── Buttons ───────────────────────── */}
+          {/* ── Buttons — always visible ───────── */}
           <View style={styles.buttonRow}>
             {/* Cancel */}
             <TouchableOpacity
@@ -165,6 +179,16 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
+  // ── Scrollable area ───────────────────────
+  // maxHeight ensures the button row is always visible
+  // even when the product table is very long
+  scrollArea: {
+    maxHeight: 320,
+  },
+  scrollContent: {
+    paddingBottom: 4,
+  },
+
   // ── Message ───────────────────────────────
   message: {
     fontSize: 14,
@@ -175,15 +199,15 @@ const styles = StyleSheet.create({
 
   // ── Optional children ─────────────────────
   childrenWrapper: {
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 4,
   },
 
-  // ── Button row ────────────────────────────
+  // ── Button row — always at bottom ─────────
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 22,
+    marginTop: 18,
     gap: 10,
   },
 

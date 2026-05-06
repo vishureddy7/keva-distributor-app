@@ -1,6 +1,5 @@
 // ─────────────────────────────────────────────
-//  App.js  (UPDATED)
-//  Added ImportStockScreen route.
+//  App.js
 // ─────────────────────────────────────────────
 
 import React from 'react';
@@ -14,20 +13,18 @@ import { Provider as PaperProvider, DefaultTheme }   from 'react-native-paper';
 import { AppProvider, useAppContext } from './src/context/AppContext';
 
 // ── Screens ───────────────────────────────────
-import HomeScreen        from './src/screens/HomeScreen';
-import RecordSaleScreen  from './src/screens/RecordSaleScreen';
-import RestockScreen     from './src/screens/RestockScreen';
-import AddProductScreen  from './src/screens/AddProductScreen';
-import ViewStockScreen   from './src/screens/ViewStockScreen';
-import ExcelViewScreen   from './src/screens/ExcelViewScreen';
-import EditProductScreen from './src/screens/EditProductScreen';
-import ImportStockScreen from './src/screens/ImportStockScreen';   // ← NEW
+import HomeScreen           from './src/screens/HomeScreen';
+import RecordSaleScreen     from './src/screens/RecordSaleScreen';
+import RestockScreen        from './src/screens/RestockScreen';
+import AddProductScreen     from './src/screens/AddProductScreen';
+import ViewStockScreen      from './src/screens/ViewStockScreen';
+import ExcelViewScreen      from './src/screens/ExcelViewScreen';
+import EditProductScreen    from './src/screens/EditProductScreen';
+import CustomerSalesScreen  from './src/screens/CustomerSalesScreen';
+import EditSaleScreen       from './src/screens/EditSaleScreen';
+import ProductDetailScreen  from './src/screens/ProductDetailScreen';
 
 import { ROUTES, COLORS } from './src/utils/constants';
-
-// ─────────────────────────────────────────────
-//  Stack
-// ─────────────────────────────────────────────
 
 const Stack = createStackNavigator();
 
@@ -133,11 +130,22 @@ function AppNavigator() {
           component={EditProductScreen}
           options={{ title: 'Edit Product' }}
         />
-        {/* ── NEW ── */}
         <Stack.Screen
-          name={ROUTES.IMPORT_STOCK}
-          component={ImportStockScreen}
-          options={{ title: 'Import Stock from Invoice' }}
+          name={ROUTES.CUSTOMER_SALES}
+          component={CustomerSalesScreen}
+          options={{ title: 'Customer Sales Records' }}
+        />
+        <Stack.Screen
+          name={ROUTES.EDIT_SALE}
+          component={EditSaleScreen}
+          options={{ title: 'Edit Sale' }}
+        />
+        <Stack.Screen
+          name={ROUTES.PRODUCT_DETAIL}
+          component={ProductDetailScreen}
+          options={({ route }) => ({
+            title: route.params?.product?.productName ?? 'Product Detail',
+          })}
         />
       </Stack.Navigator>
     </NavigationContainer>

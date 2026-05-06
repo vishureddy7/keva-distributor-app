@@ -1,6 +1,5 @@
 // ─────────────────────────────────────────────
-//  constants.js  (UPDATED)
-//  Added IMPORT_STOCK route
+//  constants.js
 // ─────────────────────────────────────────────
 
 export const EXCEL_FILE_NAME = 'keva_stock.xlsx';
@@ -61,12 +60,14 @@ export const COLORS = {
 };
 
 export const ROUTES = {
-  HOME:         'Home',
-  RECORD_SALE:  'RecordSale',
-  RESTOCK:      'Restock',
-  ADD_PRODUCT:  'AddProduct',
-  VIEW_STOCK:   'ViewStock',
-  EXCEL_VIEW:   'ExcelView',
-  EDIT_PRODUCT: 'EditProduct',
-  IMPORT_STOCK: 'ImportStock',   // ← NEW
+  HOME:            'Home',
+  RECORD_SALE:     'RecordSale',
+  RESTOCK:         'Restock',
+  ADD_PRODUCT:     'AddProduct',
+  VIEW_STOCK:      'ViewStock',
+  EXCEL_VIEW:      'ExcelView',
+  EDIT_PRODUCT:    'EditProduct',
+  CUSTOMER_SALES:  'CustomerSales',   // replaces IMPORT_STOCK
+  EDIT_SALE:       'EditSale',        // edit a single sale transaction
+  PRODUCT_DETAIL:  'ProductDetail',   // product detail with purchase + stock history
 };

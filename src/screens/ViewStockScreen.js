@@ -1,10 +1,11 @@
 // ─────────────────────────────────────────────
-//  ViewStockScreen.js  (UPDATED)
-//  Tap any product row to open EditProductScreen.
+//  ViewStockScreen.js
+//  Tap any product row → ProductDetailScreen
+//  (shows customer purchase history + stock records + edit option)
 // ─────────────────────────────────────────────
 
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, StatusBar, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, StatusBar } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useAppContext } from '../context/AppContext';
@@ -18,7 +19,7 @@ export default function ViewStockScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       refreshProducts();
-    }, [refreshProducts])
+    }, [refreshProducts]),
   );
 
   const onRefresh = useCallback(async () => {
@@ -27,20 +28,24 @@ export default function ViewStockScreen({ navigation }) {
     setRefreshing(false);
   }, [refreshProducts]);
 
-  // Navigate to edit screen with full product object
-  const handleRowPress = useCallback((product) => {
-    navigation.navigate(ROUTES.EDIT_PRODUCT, { product });
-  }, [navigation]);
+  // Navigate to ProductDetail so user can see purchases + stock history
+  // ProductDetail already has an "Edit Product" button built in
+  const handleRowPress = useCallback(
+    (product) => navigation.navigate(ROUTES.PRODUCT_DETAIL, { product }),
+    [navigation],
+  );
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primaryDark} />
 
-      {/* ── Edit hint banner ─────────────── */}
+      {/* ── Hint banner ──────────────────────── */}
       {!loading && products.length > 0 && (
         <View style={styles.hintBanner}>
-          <Text style={styles.hintIcon}>✏️</Text>
-          <Text style={styles.hintText}>Tap any row to rename a product</Text>
+          <Text style={styles.hintIcon}>📋</Text>
+          <Text style={styles.hintText}>
+            Tap any row to view purchases, stock history &amp; edit options
+          </Text>
         </View>
       )}
 
