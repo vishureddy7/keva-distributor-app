@@ -25,7 +25,7 @@ import { processSale }   from '../services/stockService';
 import ProductDropdown   from '../components/ProductDropdown';
 import QuantityInput     from '../components/QuantityInput';
 import ConfirmModal      from '../components/ConfirmModal';
-import { COLORS }        from '../utils/constants';
+import { COLORS, BILLING_STATUS } from '../utils/constants';
 import {
   validateCustomerName,
   validateSaleQuantity,
@@ -40,11 +40,12 @@ export default function RecordSaleScreen() {
 
   // ── Form state ────────────────────────────
   const [customerName,   setCustomerName]   = useState('');
-  const [selectedProds,  setSelectedProds]  = useState([]);   // string[]
-  const [quantities,     setQuantities]     = useState({});   // { productName: string }
+  const [selectedProds,  setSelectedProds]  = useState([]);
+  const [quantities,     setQuantities]     = useState({});
+  const [billingStatus,  setBillingStatus]  = useState(BILLING_STATUS.UNBILLED);
   const [customerError,  setCustomerError]  = useState('');
   const [productError,   setProductError]   = useState('');
-  const [qtyErrors,      setQtyErrors]      = useState({});   // { productName: string }
+  const [qtyErrors,      setQtyErrors]      = useState({});
 
   // ── Modal / save state ────────────────────
   const [modalVisible, setModalVisible] = useState(false);
@@ -152,18 +153,20 @@ export default function RecordSaleScreen() {
         currentStock: getStockFor(name),
       }));
 
-      await processSale(customerName.trim(), items);
+      await processSale(customerName.trim(), items, billingStatus);
       await refreshProducts();
 
       setLastSale({
-        customer: customerName.trim(),
-        items:    items.map(({ productName, qty }) => ({ productName, qty })),
+        customer:      customerName.trim(),
+        items:         items.map(({ productName, qty }) => ({ productName, qty })),
+        billingStatus,
       });
 
       // Reset form
       setCustomerName('');
       setSelectedProds([]);
       setQuantities({});
+      setBillingStatus(BILLING_STATUS.UNBILLED);
       setCustomerError('');
       setProductError('');
       setQtyErrors({});
@@ -214,6 +217,7 @@ export default function RecordSaleScreen() {
             <View style={styles.successTextGroup}>
               <Text style={styles.successTitle}>Sale Recorded!</Text>
               <Text style={styles.successMsg}>
+                {lastSale.billingStatus === BILLING_STATUS.BILLED ? '🧾 Billed' : '📋 Unbilled'}{' — '}
                 Sale for{' '}
                 <Text style={styles.bold}>"{lastSale.customer}"</Text>
                 {' '}saved —{' '}
@@ -335,6 +339,49 @@ export default function RecordSaleScreen() {
           </View>
         )}
 
+        {/* ── SECTION 4: Billing Status ───── */}
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionStep}>{selectedProds.length > 0 ? '4' : '3'}</Text>
+            <Text style={styles.sectionTitle}>Billing Status</Text>
+          </View>
+          <Text style={styles.billingHint}>
+            Is this sale billed (invoice issued) or unbilled?
+          </Text>
+          <View style={styles.billingToggleRow}>
+            <TouchableOpacity
+              style={[
+                styles.billingPill,
+                billingStatus === BILLING_STATUS.UNBILLED && styles.billingPillActiveUnbilled,
+              ]}
+              onPress={() => setBillingStatus(BILLING_STATUS.UNBILLED)}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.billingPillText,
+                billingStatus === BILLING_STATUS.UNBILLED && styles.billingPillTextActive,
+              ]}>
+                📋  Unbilled
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.billingPill,
+                billingStatus === BILLING_STATUS.BILLED && styles.billingPillActiveBilled,
+              ]}
+              onPress={() => setBillingStatus(BILLING_STATUS.BILLED)}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.billingPillText,
+                billingStatus === BILLING_STATUS.BILLED && styles.billingPillTextActive,
+              ]}>
+                🧾  Billed
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* ── Submit button ───────────────── */}
         <TouchableOpacity
           style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
@@ -353,7 +400,7 @@ export default function RecordSaleScreen() {
       <ConfirmModal
         visible={modalVisible}
         title="Confirm Sale?"
-        message={`Recording sale for "${customerName.trim()}". Stock will be deducted immediately.`}
+        message={`Recording ${billingStatus === BILLING_STATUS.BILLED ? 'billed' : 'unbilled'} sale for "${customerName.trim()}". Stock will be deducted immediately.`}
         confirmLabel="Record Sale"
         cancelLabel="Go Back"
         confirmColor={COLORS.primary}
@@ -495,6 +542,45 @@ const styles = StyleSheet.create({
   },
   saleSummaryLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 0.2 },
   saleSummaryValue: { fontSize: 20, fontWeight: '800', color: COLORS.primary },
+
+  // ── Billing toggle ────────────────────────
+  billingHint: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 10,
+    lineHeight: 17,
+  },
+  billingToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  billingPill: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#BDBDBD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  billingPillActiveUnbilled: {
+    backgroundColor: '#FFF3E0',
+    borderColor: COLORS.warning,
+  },
+  billingPillActiveBilled: {
+    backgroundColor: '#E8F5E9',
+    borderColor: COLORS.success,
+  },
+  billingPillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  billingPillTextActive: {
+    color: COLORS.textPrimary,
+    fontWeight: '800',
+  },
 
   // ── Submit button ─────────────────────────
   submitBtn: {

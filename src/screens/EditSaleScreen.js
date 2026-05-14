@@ -1,12 +1,16 @@
 // ─────────────────────────────────────────────
-//  EditSaleScreen.js  (REDESIGNED)
+//  EditSaleScreen.js  (UPDATED)
 //
 //  Now edits the FULL sale group, not just one line.
 //  Editable fields:
 //    • Customer name
 //    • Date / Time (timestamp string)
+//    • Billing status (billed / unbilled) — NEW
 //    • Products — edit quantity, remove, or add new
 //  Also: Delete entire sale (restores all stock).
+//
+//  FIX: billing status is now preserved correctly
+//  when saving (was always resetting to 'billed').
 // ─────────────────────────────────────────────
 
 import React, { useState, useCallback } from 'react';
@@ -28,7 +32,7 @@ import { updateSaleGroup }           from '../services/firebaseService';
 import { deleteSaleGroup }           from '../services/firebaseService';
 import ProductDropdown               from '../components/ProductDropdown';
 import ConfirmModal                  from '../components/ConfirmModal';
-import { COLORS }                    from '../utils/constants';
+import { COLORS, BILLING_STATUS }    from '../utils/constants';
 import { getNowTimestamp }           from '../utils/dateHelpers';
 
 // ─────────────────────────────────────────────
@@ -53,9 +57,12 @@ export default function EditSaleScreen({ route, navigation }) {
   const { productNames, getStockFor, refreshProducts } = useAppContext();
 
   // ── Editable state ───────────────────────
-  const [customer,    setCustomer]    = useState(group.customerOrSource || '');
-  const [timestamp,   setTimestamp]   = useState(group.timestamp || getNowTimestamp());
-  const [editItems,   setEditItems]   = useState(
+  const [customer,       setCustomer]       = useState(group.customerOrSource || '');
+  const [timestamp,      setTimestamp]      = useState(group.timestamp || getNowTimestamp());
+  const [billingStatus,  setBillingStatus]  = useState(
+    group.billingStatus || BILLING_STATUS.UNBILLED,
+  );
+  const [editItems,      setEditItems]      = useState(
     group.items.map((tx) => makeEditItem(tx.productName, tx.quantity)),
   );
 
@@ -208,6 +215,7 @@ export default function EditSaleScreen({ route, navigation }) {
         customer.trim(),
         timestamp.trim(),
         group.createdAt,
+        billingStatus,           // ← correctly passed now (was missing before)
       );
 
       await refreshProducts();
@@ -251,6 +259,7 @@ export default function EditSaleScreen({ route, navigation }) {
   const hasChanged  =
     customer.trim() !== group.customerOrSource ||
     timestamp.trim() !== group.timestamp ||
+    billingStatus !== (group.billingStatus || BILLING_STATUS.UNBILLED) ||
     JSON.stringify(validItems.map((i) => ({ p: i.productName, q: parseFloat(i.quantity) }))) !==
     JSON.stringify(group.items.map((tx) => ({ p: tx.productName, q: tx.quantity })));
 
@@ -281,6 +290,14 @@ export default function EditSaleScreen({ route, navigation }) {
           <Text style={styles.infoTitle}>Original Sale</Text>
           <InfoRow label="Customer"  value={group.customerOrSource} />
           <InfoRow label="Date/Time" value={group.timestamp} />
+          <InfoRow
+            label="Billing"
+            value={
+              (group.billingStatus || BILLING_STATUS.UNBILLED) === BILLING_STATUS.BILLED
+                ? '🧾 Billed'
+                : '📋 Unbilled'
+            }
+          />
           <InfoRow
             label="Products"
             value={`${group.items.length} item${group.items.length !== 1 ? 's' : ''}, ${group.items.reduce((s, t) => s + t.quantity, 0)} units total`}
@@ -330,6 +347,46 @@ export default function EditSaleScreen({ route, navigation }) {
             ? <Text style={styles.errorText}>{tsError}</Text>
             : <Text style={styles.hint}>Format: DD-MMM-YYYY H:MM AM/PM</Text>
           }
+
+          <View style={{ height: 16 }} />
+
+          {/* ── Billing status toggle ── */}
+          <Text style={styles.label}>Billing Status</Text>
+          <Text style={styles.billingHint}>
+            Change whether this sale is billed or unbilled.
+          </Text>
+          <View style={styles.billingToggleRow}>
+            <TouchableOpacity
+              style={[
+                styles.billingPill,
+                billingStatus === BILLING_STATUS.UNBILLED && styles.billingPillActiveUnbilled,
+              ]}
+              onPress={() => setBillingStatus(BILLING_STATUS.UNBILLED)}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.billingPillText,
+                billingStatus === BILLING_STATUS.UNBILLED && styles.billingPillTextActive,
+              ]}>
+                📋  Unbilled
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.billingPill,
+                billingStatus === BILLING_STATUS.BILLED && styles.billingPillActiveBilled,
+              ]}
+              onPress={() => setBillingStatus(BILLING_STATUS.BILLED)}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.billingPillText,
+                billingStatus === BILLING_STATUS.BILLED && styles.billingPillTextActive,
+              ]}>
+                🧾  Billed
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Product list ─────────────────── */}
@@ -418,8 +475,12 @@ export default function EditSaleScreen({ route, navigation }) {
         loading={saving}
       >
         <View style={styles.modalSummary}>
-          <ModalRow label="Customer"  value={customer.trim()} isFirst />
-          <ModalRow label="Date/Time" value={timestamp.trim()} />
+          <ModalRow label="Customer"   value={customer.trim()} isFirst />
+          <ModalRow label="Date/Time"  value={timestamp.trim()} />
+          <ModalRow
+            label="Billing"
+            value={billingStatus === BILLING_STATUS.BILLED ? '🧾 Billed' : '📋 Unbilled'}
+          />
           <ModalRow
             label="Products"
             value={`${validItems.length} item${validItems.length !== 1 ? 's' : ''}, ${totalUnits} units`}
@@ -607,6 +668,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
   },
   formTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 14 },
+
+  // ── Billing toggle ────────────────────────
+  billingHint: {
+    fontSize: 12, color: COLORS.textSecondary, marginBottom: 10, lineHeight: 17,
+  },
+  billingToggleRow: { flexDirection: 'row', gap: 10 },
+  billingPill: {
+    flex: 1, paddingVertical: 11, borderRadius: 10,
+    borderWidth: 1.5, borderColor: '#BDBDBD',
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+  },
+  billingPillActiveUnbilled: { backgroundColor: '#FFF3E0', borderColor: COLORS.warning },
+  billingPillActiveBilled:   { backgroundColor: '#E8F5E9', borderColor: COLORS.success },
+  billingPillText:       { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary },
+  billingPillTextActive: { color: COLORS.textPrimary, fontWeight: '800' },
 
   // ── Products card ─────────────────────────
   productsCard: {

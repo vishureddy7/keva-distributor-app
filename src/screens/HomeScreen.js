@@ -45,6 +45,13 @@ const ACTIONS = [
     accent:   '#6A1B9A',
   },
   {
+    route:    ROUTES.BILLED_UNSOLD,
+    icon:     '📋',
+    label:    'Billed (but Unsold)',
+    sublabel: 'Track billed undelivered stock',
+    accent:   '#5E35B1',
+  },
+  {
     route:    ROUTES.ADD_PRODUCT,
     icon:     '➕',
     label:    'Add New Product',

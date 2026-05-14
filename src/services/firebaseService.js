@@ -310,6 +310,7 @@ export async function updateSaleGroup(
   newCustomer,
   newTimestamp,
   originalCreatedAt,
+  newBillingStatus = 'billed',
 ) {
   const now   = getNowTimestamp();
   const batch = writeBatch(db);
@@ -378,6 +379,7 @@ export async function updateSaleGroup(
       quantity:         item.quantity,
       timestamp:        newTimestamp,
       createdAt:        baseCreatedAt + i,
+      billingStatus:    newBillingStatus,
     });
   });
 
@@ -595,7 +597,7 @@ export async function bulkImportStock(items, source = 'KEVA IMPORT') {
 //  WRITE: Record a Sale (atomic)
 // ─────────────────────────────────────────────
 
-export async function recordSale(customerName, items) {
+export async function recordSale(customerName, items, billingStatus = 'unbilled') {
   const now = getNowTimestamp();
 
   const productSnaps = await Promise.all(
@@ -635,6 +637,7 @@ export async function recordSale(customerName, items) {
       quantity:         qty,
       timestamp:        now,
       createdAt:        Date.now() + i,
+      billingStatus:    billingStatus,
     });
   }
 
@@ -676,6 +679,63 @@ export async function recordRestock(productName, qty, remarks = '') {
   });
 
   await batch.commit();
+}
+
+// ─────────────────────────────────────────────
+//  WRITE: Mark an entire Sale Group as Billed
+//  Updates billingStatus on all tx docs in a group.
+//
+//  @param {Array<{id}>} groupItems
+// ─────────────────────────────────────────────
+
+export async function markSaleGroupAsBilled(groupItems) {
+  const batch = writeBatch(db);
+  for (const item of groupItems) {
+    batch.update(doc(transactionsCol(), item.id), { billingStatus: 'billed' });
+  }
+  await batch.commit();
+}
+
+// ─────────────────────────────────────────────
+//  BILLED (BUT UNSOLD) — separate collection
+//  Does NOT affect stock. Purely informational.
+// ─────────────────────────────────────────────
+
+const billedUnsoldCol = () => collection(db, 'billedUnsold');
+
+/**
+ * Adds a new billed-but-unsold entry.
+ * @param {string} productName
+ * @param {number} quantity
+ * @param {string} [notes]
+ */
+export async function addBilledUnsold(productName, quantity, notes = '') {
+  const now = getNowTimestamp();
+  await addDoc(billedUnsoldCol(), {
+    productName: productName.trim(),
+    quantity:    Number(quantity),
+    notes:       notes.trim(),
+    timestamp:   now,
+    createdAt:   Date.now(),
+  });
+}
+
+/**
+ * Returns all billed-unsold entries, newest first.
+ * @returns {Promise<Array<{id, productName, quantity, notes, timestamp, createdAt}>>}
+ */
+export async function getBilledUnsoldList() {
+  const q    = query(billedUnsoldCol(), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Deletes a single billed-unsold entry.
+ * @param {string} id — Firestore doc ID
+ */
+export async function deleteBilledUnsoldEntry(id) {
+  await deleteDoc(doc(billedUnsoldCol(), id));
 }
 
 // ─────────────────────────────────────────────

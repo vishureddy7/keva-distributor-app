@@ -59,6 +59,11 @@ export const COLORS = {
   lowStockText: '#C62828',
 };
 
+export const BILLING_STATUS = {
+  BILLED:   'billed',
+  UNBILLED: 'unbilled',
+};
+
 export const ROUTES = {
   HOME:            'Home',
   RECORD_SALE:     'RecordSale',
@@ -67,7 +72,8 @@ export const ROUTES = {
   VIEW_STOCK:      'ViewStock',
   EXCEL_VIEW:      'ExcelView',
   EDIT_PRODUCT:    'EditProduct',
-  CUSTOMER_SALES:  'CustomerSales',   // replaces IMPORT_STOCK
-  EDIT_SALE:       'EditSale',        // edit a single sale transaction
-  PRODUCT_DETAIL:  'ProductDetail',   // product detail with purchase + stock history
+  CUSTOMER_SALES:  'CustomerSales',
+  EDIT_SALE:       'EditSale',
+  PRODUCT_DETAIL:  'ProductDetail',
+  BILLED_UNSOLD:   'BilledUnsold',
 };

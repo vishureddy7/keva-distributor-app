@@ -2,17 +2,15 @@
 //  ProductDropdown.js
 //
 //  FIXES:
-//   1. listMode="MODAL" — opens the list in a real
-//      Modal overlay, completely independent of the
-//      parent ScrollView. Scroll works natively.
-//   2. Product names no longer clip — the modal list
-//      has full height and no parent constraint.
-//   3. Deselection bug fixed — internal state with
-//      functional updater so multi-select never loses
-//      previously selected items.
+//   1. Scroll inside dropdown now works — flatListProps +
+//      scrollViewProps both set nestedScrollEnabled: true.
+//   2. Multi mode no longer shows selected badges floating
+//      at the top of the list. Selected items stay in their
+//      original position; a "X selected" chip shows instead.
+//   3. Done button retained for multi mode.
 // ─────────────────────────────────────────────
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 
@@ -32,14 +30,6 @@ export default function ProductDropdown({
 }) {
   const [open, setOpen] = useState(false);
 
-  // ── Internal state — prevents stale closure in
-  //    setValue callback (fixes deselection bug) ──
-  const [internalValue, setInternalValue] = useState(value);
-
-  useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
-
   const pickerItems = items.map((name) => ({ label: name, value: name }));
 
   const isMulti  = mode === 'multi';
@@ -48,16 +38,17 @@ export default function ProductDropdown({
   const handleOpen = useCallback((isOpen) => setOpen(isOpen), []);
   const handleDone = useCallback(() => setOpen(false), []);
 
-  // ── Placeholder text for multi mode ───────
+  // ── Multi mode: build placeholder text ────
   const multiPlaceholder = (() => {
     if (!isMulti) return placeholder;
-    const count = Array.isArray(internalValue) ? internalValue.length : 0;
+    const count = Array.isArray(value) ? value.length : 0;
     if (count === 0) return placeholder;
-    return count === 1 ? '1 product selected' : `${count} products selected`;
+    if (count === 1) return `1 product selected`;
+    return `${count} products selected`;
   })();
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { zIndex, elevation: zIndex }]}>
 
       {/* ── Label ─────────────────────────── */}
       {!!label && (
@@ -73,23 +64,20 @@ export default function ProductDropdown({
       <DropDownPicker
         open={open}
         setOpen={handleOpen}
-
-        value={internalValue}
+        value={value}
         setValue={(callback) => {
-          setInternalValue((prev) => {
-            const next = typeof callback === 'function' ? callback(prev) : callback;
-            onValueChange(next);
-            return next;
-          });
+          const newValue = typeof callback === 'function' ? callback(value) : callback;
+          onValueChange(newValue);
         }}
-
         items={pickerItems}
         multiple={isMulti}
+        // SIMPLE mode keeps selected items in their original
+        // list position (BADGE moves them to top — avoid).
         mode="SIMPLE"
 
         placeholder={isMulti ? multiPlaceholder : placeholder}
         placeholderStyle={
-          isMulti && Array.isArray(internalValue) && internalValue.length > 0
+          isMulti && Array.isArray(value) && value.length > 0
             ? styles.placeholderSelected
             : styles.placeholder
         }
@@ -97,33 +85,19 @@ export default function ProductDropdown({
 
         style={[
           styles.picker,
-          hasError && styles.pickerError,
-          disabled && styles.pickerDisabled,
+          hasError  && styles.pickerError,
+          disabled  && styles.pickerDisabled,
+          open      && styles.pickerOpen,
         ]}
         containerStyle={styles.container}
+        dropDownContainerStyle={[
+          styles.dropdownContainer,
+          { zIndex: zIndex + 10, elevation: zIndex + 10 },
+        ]}
 
-        // ── KEY FIX: Modal mode ───────────────
-        // Opens the list in a true RN Modal above the
-        // entire screen — no parent ScrollView conflict,
-        // full native scroll, no clipping.
-        listMode="MODAL"
-        modalProps={{
-          animationType: 'fade',
-          statusBarTranslucent: true,
-        }}
-        modalContentContainerStyle={styles.modalContent}
-        modalTitle={isMulti ? 'Select Products' : 'Select Product'}
-        modalTitleStyle={styles.modalTitle}
-
-        // Search
-        searchable
-        searchPlaceholder="Search products…"
-        searchContainerStyle={styles.searchContainer}
-        searchTextInputStyle={styles.searchInput}
-
-        // Item styles
         listItemContainerStyle={styles.listItem}
         listItemLabelStyle={styles.listItemLabel}
+
         selectedItemContainerStyle={styles.selectedItem}
         selectedItemLabelStyle={styles.selectedItemLabel}
         tickIconStyle={styles.tickIcon}
@@ -135,6 +109,15 @@ export default function ProductDropdown({
         zIndex={zIndex}
         zIndexInverse={zIndexInverse}
 
+        searchable={items.length > 8}
+        searchPlaceholder="Search products…"
+        searchContainerStyle={styles.searchContainer}
+        searchTextInputStyle={styles.searchInput}
+
+        // ── KEY FIX: enable nested scroll ──
+        flatListProps={{ nestedScrollEnabled: true }}
+        scrollViewProps={{ nestedScrollEnabled: true }}
+
         ListEmptyComponent={() => (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyText}>No products found.</Text>
@@ -142,8 +125,8 @@ export default function ProductDropdown({
           </View>
         )}
 
-        // Done button inside modal for multi mode
-        ListFooterComponent={isMulti ? () => (
+        // ── Done button for multi mode ─────
+        ListFooterComponent={isMulti && open ? () => (
           <TouchableOpacity
             style={styles.doneBtn}
             onPress={handleDone}
@@ -155,19 +138,20 @@ export default function ProductDropdown({
 
         closeAfterSelecting={!isMulti}
         showTickIcon
+        maxHeight={300}
       />
 
-      {/* ── Selected chips (multi, closed) ── */}
-      {isMulti && !open && Array.isArray(internalValue) && internalValue.length > 0 && (
+      {/* ── Selected chips summary (multi only, closed state) ── */}
+      {isMulti && !open && Array.isArray(value) && value.length > 0 && (
         <View style={styles.selectedChipsRow}>
-          {internalValue.slice(0, 3).map((v) => (
+          {value.slice(0, 3).map((v) => (
             <View key={v} style={styles.chip}>
               <Text style={styles.chipText} numberOfLines={1}>{v}</Text>
             </View>
           ))}
-          {internalValue.length > 3 && (
+          {value.length > 3 && (
             <View style={[styles.chip, styles.chipMore]}>
-              <Text style={styles.chipMoreText}>+{internalValue.length - 3} more</Text>
+              <Text style={styles.chipMoreText}>+{value.length - 3} more</Text>
             </View>
           )}
         </View>
@@ -202,7 +186,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   labelError: { color: COLORS.error },
-  labelHint:  { fontSize: 12, fontWeight: '400', color: COLORS.textSecondary },
+  labelHint: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: COLORS.textSecondary,
+  },
 
   container: {},
 
@@ -214,81 +202,87 @@ const styles = StyleSheet.create({
     minHeight: 50,
     paddingHorizontal: 12,
   },
+  pickerOpen: {
+    borderColor: COLORS.primary,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   pickerError:    { borderColor: COLORS.error },
   pickerDisabled: { backgroundColor: '#F5F5F5', borderColor: '#E0E0E0' },
 
-  // ── Modal list styles ─────────────────────
-  modalContent: {
+  dropdownContainer: {
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: BORDER_RADIUS,
+    borderBottomRightRadius: BORDER_RADIUS,
     backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    paddingBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.textPrimary,
-    letterSpacing: 0.2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
   },
 
   listItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
-    minHeight: 52,
-    // height: auto so long names wrap naturally
+    height: 'auto',
+    minHeight: 48,
+    alignItems: 'center',
   },
   listItemLabel: {
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textPrimary,
     flexWrap: 'wrap',
     flexShrink: 1,
-    lineHeight: 21,
   },
 
   selectedItem:      { backgroundColor: '#E8EEF8' },
   selectedItemLabel: { color: COLORS.primary, fontWeight: '700' },
 
-  tickIcon:  { tintColor: COLORS.primary, width: 18, height: 18 },
+  tickIcon:  { tintColor: COLORS.primary, width: 16, height: 16 },
   arrowIcon: { tintColor: COLORS.textSecondary, width: 18, height: 18 },
 
-  pickerText:          { fontSize: 15, color: COLORS.textPrimary },
-  pickerLabel:         { fontSize: 15, color: COLORS.textPrimary, fontWeight: '500' },
-  placeholder:         { color: COLORS.textSecondary, fontSize: 15 },
+  pickerText:        { fontSize: 15, color: COLORS.textPrimary },
+  pickerLabel:       { fontSize: 15, color: COLORS.textPrimary, fontWeight: '500' },
+  placeholder:       { color: COLORS.textSecondary, fontSize: 15 },
   placeholderSelected: { color: COLORS.primary, fontSize: 15, fontWeight: '600' },
 
   searchContainer: {
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   searchInput: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textPrimary,
-    paddingHorizontal: 12,
-    height: 42,
+    paddingHorizontal: 10,
+    height: 38,
   },
 
-  emptyBox:  { padding: 24, alignItems: 'center' },
+  emptyBox:  { padding: 20, alignItems: 'center' },
   emptyText: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 4 },
   emptyHint: { fontSize: 12, color: COLORS.textSecondary },
 
-  // ── Done button (multi modal footer) ──────
+  // ── Done button ───────────────────────────
   doneBtn: {
-    marginHorizontal: 16,
-    marginTop: 8,
     paddingVertical: 14,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
-    borderRadius: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#4A7FCC',
+    borderBottomLeftRadius: BORDER_RADIUS,
+    borderBottomRightRadius: BORDER_RADIUS,
   },
   doneBtnText: {
     color: COLORS.surface,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.4,
   },
@@ -305,11 +299,21 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    maxWidth: 180,
+    maxWidth: 160,
   },
-  chipText:     { fontSize: 12, fontWeight: '600', color: COLORS.primary },
-  chipMore:     { backgroundColor: '#F0F0F0' },
-  chipMoreText: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  chipMore: {
+    backgroundColor: '#F0F0F0',
+  },
+  chipMoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
 
   errorText: {
     marginTop: 5,

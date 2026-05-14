@@ -23,6 +23,7 @@ import EditProductScreen    from './src/screens/EditProductScreen';
 import CustomerSalesScreen  from './src/screens/CustomerSalesScreen';
 import EditSaleScreen       from './src/screens/EditSaleScreen';
 import ProductDetailScreen  from './src/screens/ProductDetailScreen';
+import BilledUnsoldScreen   from './src/screens/BilledUnsoldScreen';
 
 import { ROUTES, COLORS } from './src/utils/constants';
 
@@ -146,6 +147,11 @@ function AppNavigator() {
           options={({ route }) => ({
             title: route.params?.product?.productName ?? 'Product Detail',
           })}
+        />
+        <Stack.Screen
+          name={ROUTES.BILLED_UNSOLD}
+          component={BilledUnsoldScreen}
+          options={{ title: 'Billed (but Unsold)' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
