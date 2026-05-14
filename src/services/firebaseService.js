@@ -166,7 +166,29 @@ export async function deleteProduct(productName) {
     throw new Error(`Product "${name}" not found.`);
   }
 
-  await deleteDoc(productRef);
+  // Fetch ALL transactions for this product so we can wipe them too.
+  // Without this, deleted-product sales kept showing in CustomerSalesScreen.
+  const txQuery = query(transactionsCol(), where('productName', '==', name));
+  const txSnap  = await getDocs(txQuery);
+
+  // Also wipe any billedUnsold entries for this product
+  const buQuery = query(billedUnsoldCol(), where('productName', '==', name));
+  const buSnap  = await getDocs(buQuery);
+
+  const allDocsToDelete = [
+    productRef,
+    ...txSnap.docs.map((d) => d.ref),
+    ...buSnap.docs.map((d) => d.ref),
+  ];
+
+  // Firestore batches are limited to 500 ops — chunk if necessary
+  const BATCH_LIMIT = 499;
+  for (let i = 0; i < allDocsToDelete.length; i += BATCH_LIMIT) {
+    const chunk = allDocsToDelete.slice(i, i + BATCH_LIMIT);
+    const batch = writeBatch(db);
+    chunk.forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
 }
 
 // ─────────────────────────────────────────────
